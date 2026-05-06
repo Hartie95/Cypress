@@ -5,11 +5,7 @@
 #include <fb/Engine/ServerPlayer.h>
 #include <fb/Engine/ServerPlayerManager.h>
 #include <fb/Engine/ServerConnection.h>
-#ifdef CYPRESS_BFN
 #include <fb/SecureReason.h>
-#else
-#include <fb/TypeInfo/SecureReason.h>
-#endif
 #include <Kyber/SocketManager.h>
 
 #ifdef CYPRESS_BFN
@@ -123,17 +119,6 @@ DECLARE_HOOK(
 	const char* nickname
 );
 
-#ifdef CYPRESS_BFN
-DECLARE_HOOK(
-	fb_ServerPlayer_disconnect,
-	__fastcall,
-	void,
-
-	fb::ServerPlayer* thisPtr,
-	fb::SecureReason reason,
-	eastl::new_string* reasonText
-);
-#else
 DECLARE_HOOK(
 	fb_ServerPlayer_disconnect,
 	__fastcall,
@@ -152,5 +137,4 @@ DECLARE_HOOK(
 	void* a1,
 	int a2
 );
-#endif
 #endif

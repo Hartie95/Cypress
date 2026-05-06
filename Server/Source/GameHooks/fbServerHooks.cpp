@@ -765,46 +765,6 @@ DEFINE_HOOK(
 	return Orig_fb_ServerPlayerManager_addPlayer(thisPtr, player, nickname);
 }
 
-#ifdef CYPRESS_BFN
-DEFINE_HOOK(
-	fb_ServerPlayer_disconnect,
-	__fastcall,
-	void,
-
-	fb::ServerPlayer* thisPtr,
-	fb::SecureReason reason,
-	eastl::new_string* reasonText
-)
-{
-	const char* reasonStr = "None provided";
-
-	if (!reasonText->empty())
-		reasonStr = reasonText->c_str();
-
-	if (!thisPtr->isAIPlayer() && thisPtr->m_name && thisPtr->m_name[0] != '\0')
-	{
-		CYPRESS_LOGTOSERVER(LogLevel::Info, "[Id: {}] {} has left the server (Reason: {}, {})",
-			thisPtr->getPlayerId(),
-			thisPtr->m_name,
-			reasonStr,
-			fb::SecureReason_ToString(reason));
-
-		if (Cypress_IsEmbeddedMode())
-			Cypress_EmitJsonPlayerEvent("playerLeave", thisPtr->getPlayerId(), thisPtr->m_name, reasonStr);
-
-		// Notify moderator clients via side-channel
-#if(HAS_DEDICATED_SERVER)
-		if (g_program->IsServer())
-		{
-			g_program->GetServer()->GetSideChannel()->Broadcast(
-				{ {"type", "scPlayerLeave"}, {"id", thisPtr->getPlayerId()}, {"name", std::string(thisPtr->m_name)} });
-		}
-#endif
-	}
-
-	Orig_fb_ServerPlayer_disconnect(thisPtr, reason, reasonText);
-}
-#else
 DEFINE_HOOK(
 	fb_ServerPlayer_disconnect,
 	__fastcall,
@@ -823,7 +783,7 @@ DEFINE_HOOK(
 			thisPtr->getPlayerId(),
 			thisPtr->m_name,
 			reasonStr,
-			fb::SecureReason_toString[reason]);
+			fb::SecureReason_toString(reason));
 
 		if (Cypress_IsEmbeddedMode())
 			Cypress_EmitJsonPlayerEvent("playerLeave", thisPtr->getPlayerId(), thisPtr->m_name, reasonStr);
@@ -854,5 +814,4 @@ DEFINE_HOOK(
 		a2 = 0;
 	return Orig_fb_sub_140112AA0(a1, a2);
 }
-#endif
 #endif

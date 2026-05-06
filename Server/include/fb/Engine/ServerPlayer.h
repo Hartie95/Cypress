@@ -1,13 +1,8 @@
 #pragma once
 #include <cstdint>
 #include <MemUtil.h>
-#ifdef CYPRESS_BFN
 #include <fb/SecureReason.h>
-#include <EASTL/new_string.h>
-#else
-#include <fb/TypeInfo/SecureReason.h>
 #include <EASTL/string.h>
-#endif
 
 #ifdef CYPRESS_GW2
 #include "fb/TypeInfo/Asset.h"
@@ -103,19 +98,11 @@ namespace fb
         }
 #endif
 
-#ifdef CYPRESS_BFN
-        void disconnect(fb::SecureReason reason, eastl::new_string* reasonText)
-        {
-            auto ServerPlayer__disconnect = reinterpret_cast<void (*)(void* inst, fb::SecureReason reason, eastl::new_string* reasonText)>(OFFSET_SERVERPLAYER_DISCONNECT);
-            ServerPlayer__disconnect(this, reason, reasonText);
-        }
-#else
         void disconnect(fb::SecureReason reason, eastl::string& reasonText)
         {
             auto ServerPlayer__disconnect = reinterpret_cast<void (*)(void* inst, fb::SecureReason reason, eastl::string & reasonText)>(OFFSET_SERVERPLAYER_DISCONNECT);
             ServerPlayer__disconnect(this, reason, reasonText);
         }
-#endif
 
 #ifndef CYPRESS_BFN
     private:

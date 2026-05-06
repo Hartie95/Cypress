@@ -217,18 +217,18 @@ DEFINE_HOOK(
 
 	void* thisPtr,
 	fb::SecureReason reason,
-	eastl::new_string* reasonText
+	eastl::string& reasonText
 )
 {
 	if (g_program->IsClient())
 		g_program->GetClient()->DisconnectSideChannel();
 
-	const char* reasonStr = "No reason Provided";
+	const char* reasonStr = "No reason provided";
 
-	if (!reasonText->empty())
-		reasonStr = reasonText->c_str();
+	if (!reasonText.empty())
+		reasonStr = reasonText.c_str();
 
-	std::string bodyMsg = std::format("Disconnect: {} ({})", reasonStr, fb::SecureReason_ToString(reason));
+	std::string bodyMsg = std::format("Disconnect: {} ({})", reasonStr, fb::SecureReason_toString(reason));
 
 	if (reason == fb::SecureReason_TimedOut || reason == fb::SecureReason_NoReply || reason == fb::SecureReason_ConnectFailed)
 	{
@@ -262,28 +262,6 @@ DEFINE_HOOK(
 	return pUser;
 }
 #else
-DEFINE_HOOK(
-	fb_OnlineManager_onGotDisconnected,
-	__fastcall,
-	void,
-
-	void* thisPtr,
-	fb::SecureReason reason,
-	eastl::string& reasonText
-)
-{
-	if (g_program->IsClient())
-		g_program->GetClient()->DisconnectSideChannel();
-
-	eastl::string reasonStr = "No reason provided";
-	if (!reasonText.empty())
-		reasonStr = reasonText;
-
-	std::string bodyMsg = std::format("Disconnect: {} ({})", reasonStr.c_str(), fb::SecureReason_toString[reason]);
-
-	MessageBoxA(GetActiveWindow(), bodyMsg.c_str(), "Disconnected", MB_ICONINFORMATION | MB_OK);
-	exit(0xCC1);
-}
 
 DEFINE_HOOK(
 	fb_PVZGetNumTutorialVideos,

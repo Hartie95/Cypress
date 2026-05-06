@@ -6,7 +6,7 @@
 #include "LoadoutValidator.h"
 #include <Core/Program.h>
 
-#include "fb/TypeInfo/SecureReason.h"
+#include "fb/SecureReason.h"
 
 DEFINE_HOOK(
 	fb_PVZSpawnManager_spawnOnSpawnPoint,
