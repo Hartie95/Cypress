@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include <SideChannel.h>
 #include <Core/Logging.h>
+#include <Core/Program.h>
 #include <HWID.h>
 #include <fstream>
 #include <random>
@@ -588,6 +589,8 @@ namespace Cypress
 						{"extra", std::string(peer.isModerator ? "mod" : "player")},
 					{"account_id", peer.accountId}
 				};
+				if (g_program && g_program->IsServer() && g_program->GetServer())
+					g_program->GetServer()->AppendPlayerMetadata(authEvent, peer.name);
 				Cypress_WriteRawStdout(authEvent.dump() + "\n");
 			}
 
@@ -596,7 +599,7 @@ namespace Cypress
 			if (!peer.identityNickname.empty() && !peer.identityUsername.empty())
 				modDisplayName = peer.identityNickname + " (@" + peer.identityUsername + ")";
 
-			BroadcastToMods({
+			nlohmann::json authMsg = {
 				{"type", "scPlayerAuth"},
 				{"name", peer.name},
 				{"display_name", modDisplayName},
@@ -606,7 +609,10 @@ namespace Cypress
 				{"hwid", peer.hwid},
 				{"components", peer.fingerprint.toJson()},
 				{"account_id", peer.accountId}
-			});
+			};
+			if (g_program && g_program->IsServer() && g_program->GetServer())
+				g_program->GetServer()->AppendPlayerMetadata(authMsg, peer.name);
+			BroadcastToMods(authMsg);
 
 			if (peer.isModerator && m_onModeratorAuth)
 			{
@@ -1444,7 +1450,7 @@ namespace Cypress
 					Send({ {"type", "requestPlayerList"} });
 			}
 			// forward player events to launcher for mod ui
-			else if (type == "scPlayerJoin" || type == "scPlayerLeave" || type == "scPlayerList" || type == "scPlayerAuth" || type == "scModBans")
+			else if (type == "scPlayerJoin" || type == "scPlayerLeave" || type == "scPlayerList" || type == "scPlayerAuth" || type == "scPlayerState" || type == "scModBans")
 			{
 				if (Cypress_IsEmbeddedMode())
 				{

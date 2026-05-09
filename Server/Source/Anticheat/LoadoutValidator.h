@@ -44,6 +44,7 @@ inline bool HasFlag(ValidationFlag flags, ValidationFlag flag) {
 struct WeaponSet
 {
     std::unordered_set<uint32_t> primary; //WeaponSlot_0
+    std::vector<std::string> primaryNames;
     std::unordered_set<uint32_t> ability1; //WeaponSlot_1
     std::unordered_set<uint32_t> ability2; //WeaponSlot_2
     std::unordered_set<uint32_t> ability3; //WeaponSlot_3
@@ -76,6 +77,8 @@ struct ValidationResult {
     std::vector<std::string> invalidUpgrades;
 
     std::string characterName;
+    std::string teamName;
+    std::string weaponName;
     std::string playerName;
     uint64_t personaId = 0;
     int teamId = -1;

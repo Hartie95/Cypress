@@ -16,13 +16,27 @@ bool LoadoutValidator::isValidTeamForFaction(int teamId, bool isPlant, bool isZo
     return true;
 }
 
+static std::string normalizeTeamName(int teamId)
+{
+    if (teamId == 2) return "plants";
+    if (teamId == 1) return "zombies";
+    return "unknown";
+}
+
 ValidationResult LoadoutValidator::validateWeapons(fb::PVZCharacterServerPlayerExtent* extent, const WeaponSet& allowedWeapons, const char* playerName)
 {
     ValidationResult result;
 
+    if (!extent)
+    {
+        result.addFlag(ValidationFlag::NullPointer);
+        return result;
+    }
+
     // primary weapon
     if (extent->m_primary) {
         result.invalidPrimary = extent->m_primary->Name;
+        result.weaponName = cutPath(extent->m_primary->Name);
 
         const uint32_t hash = fnvHash(cutPath(extent->m_primary->Name));
         if (!allowedWeapons.primary.count(hash)) {
@@ -74,6 +88,9 @@ ValidationResult LoadoutValidator::validateWeapons(fb::PVZCharacterServerPlayerE
             }
         }
     }
+
+    if (!extent->m_primary)
+        return result;
 
     const uint32_t primaryHash = fnvHash(cutPath(extent->m_primary->Name));
 
@@ -182,7 +199,10 @@ void LoadoutValidator::init()
 
                 switch (slot)
                 {
-                case fb::WeaponSlot::WeaponSlot_0: set.primary.insert(weaponHash); break;
+                case fb::WeaponSlot::WeaponSlot_0:
+                    set.primary.insert(weaponHash);
+                    set.primaryNames.push_back(cutPath(weapon->Name));
+                    break;
                 case fb::WeaponSlot::WeaponSlot_1: set.ability1.insert(weaponHash); break;
                 case fb::WeaponSlot::WeaponSlot_2: set.ability2.insert(weaponHash); break;
                 case fb::WeaponSlot::WeaponSlot_3: set.ability3.insert(weaponHash); break;
@@ -260,7 +280,9 @@ ValidationResult LoadoutValidator::validatePlayer(fb::ServerPlayer* player) {
     }
 
     result.teamId = player->getTeamId();
+    result.teamName = normalizeTeamName(result.teamId);
     const uint32_t soldierHash = fnvHash(cutPath(characterBlueprint->Name));
+    result.characterName = cutPath(characterBlueprint->Name);
 
     const bool isPlant = std::strstr(characterBlueprint->Name, "MpPlant_") != nullptr;
     const bool isZombie = std::strstr(characterBlueprint->Name, "MpZombie_") != nullptr;
@@ -285,6 +307,10 @@ ValidationResult LoadoutValidator::validatePlayer(fb::ServerPlayer* player) {
     // validate all weapons and upgrades
     ValidationResult weaponValidation = validateWeapons(extent, allowedWeapons, playerName);
 
+    if (weaponValidation.weaponName.empty() && allowedWeapons.primaryNames.size() == 1) {
+        weaponValidation.weaponName = allowedWeapons.primaryNames.front();
+    }
+
     // merge weapon validation results to later return it
     result.flags |= weaponValidation.flags;
     if (!weaponValidation.isValid) {
@@ -305,6 +331,9 @@ ValidationResult LoadoutValidator::validatePlayer(fb::ServerPlayer* player) {
     }
     if (!weaponValidation.invalidAlternate.empty()) {
         result.invalidAlternate = weaponValidation.invalidAlternate;
+    }
+    if (!weaponValidation.weaponName.empty()) {
+        result.weaponName = weaponValidation.weaponName;
     }
     if (!weaponValidation.invalidUpgrades.empty()) {
         result.invalidUpgrades = weaponValidation.invalidUpgrades;

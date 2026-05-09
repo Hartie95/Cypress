@@ -994,6 +994,29 @@
                                     <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
                                     <p>No players connected</p>
                                 </div>
+                                <div class="player-list-columns" id="playerListColumns" style="display:none;">
+                                    <div class="player-team-column">
+                                        <div class="player-team-header">
+                                            <span>Plants</span>
+                                            <span class="player-team-count" id="plantsPlayerCount">0</span>
+                                        </div>
+                                        <div class="player-team-list" id="plantsPlayerList"></div>
+                                    </div>
+                                    <div class="player-team-column">
+                                        <div class="player-team-header">
+                                            <span>Zombies</span>
+                                            <span class="player-team-count" id="zombiesPlayerCount">0</span>
+                                        </div>
+                                        <div class="player-team-list" id="zombiesPlayerList"></div>
+                                    </div>
+                                </div>
+                                <div class="player-team-unknown" id="unknownPlayerSection" style="display:none;">
+                                    <div class="player-team-header">
+                                        <span>Unknown</span>
+                                        <span class="player-team-count" id="unknownPlayerCount">0</span>
+                                    </div>
+                                    <div class="player-team-list" id="unknownPlayerList"></div>
+                                </div>
                             </div>
                             <div class="broadcast-row" id="broadcastRow">
                                 <input type="text" class="text-input" id="broadcastInput" placeholder="Broadcast message to all players..." maxlength="200">

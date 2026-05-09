@@ -111,6 +111,7 @@ public partial class MessageHandler
 	}
 
 	private string GetServerDLLName() => $"cypress_{m_selectedGame}.dll";
+	private string GetServerDLLPath() => Path.Combine(AppContext.BaseDirectory, GetServerDLLName());
 
 	// block until all deregister requests finish (up to 5s)
 	private void ShutdownHeartbeats()

@@ -39,13 +39,6 @@ FetchContent_Declare(
   GIT_TAG 1e9ad1eb42db11bfcb65461f687c656612d1b555
 )
 
-### EASTL
-FetchContent_Declare(
-  EASTL
-  GIT_REPOSITORY https://github.com/kitsilanosoftware/EASTL.git
-  GIT_TAG 4e576b099d2ef475262459aa8a888ebed5788807
-)
-
 ### EABase
 FetchContent_Declare(
   EABase
@@ -69,29 +62,12 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(
   minhook
-  EASTL
   EABase
   nlohmann_json
   monocypher
 )
 
-# old eastl trips on modern msvc char8_t here, so strip that broken strlen fast path
-file(READ "${eastl_SOURCE_DIR}/include/EASTL/string.h" EASTL_STRING_H)
-string(REGEX REPLACE
-  "#ifdef _MSC_VER // VC\\+\\+ can implement an instrinsic here\\.[\r\n]+[ \t]*return strlen\\(p\\);[\r\n]+[ \t]*#else[\r\n]+([ \t]*const char8_t\\* pCurrent = p;[\r\n]+[ \t]*while\\(\\*pCurrent\\)[\r\n]+[ \t]*\\+\\+pCurrent;[\r\n]+[ \t]*return \\(size_t\\)\\(pCurrent - p\\);)[\r\n]+[ \t]*#endif"
-  "\\1"
-  EASTL_STRING_H
-  "${EASTL_STRING_H}"
-)
-if(NOT EASTL_STRING_H MATCHES "inline size_t CharStrlen\\(const char\\* p\\)")
-  string(REGEX REPLACE
-    "inline size_t CharStrlen\\(const char8_t\\* p\\)"
-    "inline size_t CharStrlen(const char* p)\\n    {\\n        return strlen(p);\\n    }\\n\\n    inline size_t CharStrlen(const char8_t* p)"
-    EASTL_STRING_H
-    "${EASTL_STRING_H}"
-  )
-endif()
-file(WRITE "${eastl_SOURCE_DIR}/include/EASTL/string.h" "${EASTL_STRING_H}")
+set(EASTL_LOCAL_DIR "${CMAKE_SOURCE_DIR}/vendor/EASTL")
 
 # Options for variants
 option(CYPRESS_GW1 "Build GW1 version" OFF)
@@ -115,13 +91,13 @@ add_library(cypress SHARED ${SOURCES})
 # Explicitly compile monocypher
 target_sources(cypress PRIVATE
     ${monocypher_SOURCE_DIR}/src/monocypher.c
-    ${eastl_SOURCE_DIR}/source/assert.cpp
-    ${eastl_SOURCE_DIR}/source/string.cpp
+    ${EASTL_LOCAL_DIR}/source/assert.cpp
+    ${EASTL_LOCAL_DIR}/source/string.cpp
 )
 
 set_source_files_properties(
-    ${eastl_SOURCE_DIR}/source/assert.cpp
-    ${eastl_SOURCE_DIR}/source/string.cpp
+    ${EASTL_LOCAL_DIR}/source/assert.cpp
+    ${EASTL_LOCAL_DIR}/source/string.cpp
     PROPERTIES SKIP_PRECOMPILE_HEADERS ON
 )
 
@@ -131,7 +107,7 @@ target_include_directories(cypress PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/Source
     ${monocypher_SOURCE_DIR}/src
-    ${eastl_SOURCE_DIR}/include
+    ${EASTL_LOCAL_DIR}/include
     ${eabase_SOURCE_DIR}/include/Common
 )
 

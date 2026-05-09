@@ -72,7 +72,7 @@ public partial class MessageHandler
 		bool failed = false;
 		if (GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
-			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLName(), SendStatus))
+			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLPath(), SendStatus))
 				return;
 		}
 		if (failed) return;
@@ -164,7 +164,7 @@ public partial class MessageHandler
 			SendStatus("Game directory not set.", "error");
 			return;
 		}
-		if (!File.Exists(GetServerDLLName()))
+		if (!File.Exists(GetServerDLLPath()))
 		{
 			SendStatus("Server DLL not found. Verify that " + GetServerDLLName() + " is in the launcher's folder.", "error");
 			return;
@@ -201,7 +201,7 @@ public partial class MessageHandler
 		bool failed = false;
 		if (GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
-			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLName(), SendStatus))
+			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLPath(), SendStatus))
 				return;
 		}
 		if (failed) return;
@@ -277,12 +277,16 @@ public partial class MessageHandler
 	{
 		try
 		{
-			File.Copy(GetServerDLLName(), Path.Combine(m_gameDirectory, s_destDLLName), overwrite: true);
+			File.Copy(GetServerDLLPath(), Path.Combine(m_gameDirectory, s_destDLLName), overwrite: true);
 			return true;
 		}
 		catch (IOException) when (File.Exists(Path.Combine(m_gameDirectory, s_destDLLName)))
 		{
-			return true; // already in use by another instance
+			if (PatchManager.SameFileContentsSafe(GetServerDLLPath(), Path.Combine(m_gameDirectory, s_destDLLName)))
+				return true; // already right, probably just loaded
+
+			SendStatus("failed to update dinput8.dll because the game is still using an older one.", "error");
+			return false;
 		}
 		catch (Exception ex)
 		{

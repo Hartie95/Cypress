@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <thread>
+#include <intrin.h>
 #include <Core/Program.h>
 #include <Core/Logging.h>
 #include <Core/Console/ConsoleFunctions.h>
@@ -71,6 +72,9 @@ static std::string ToLowerStr(const std::string& s)
 	for (auto& c : out) c = (char)tolower((unsigned char)c);
 	return out;
 }
+
+#ifdef CYPRESS_BFN
+#endif
 
 static bool IsNameValid(const std::string& name, std::string& reason)
 {
@@ -142,6 +146,25 @@ DEFINE_HOOK(
 		if (g_program->IsServer())
 			g_program->GetServer()->StartSideChannel();
 	}
+
+#ifdef CYPRESS_BFN
+	static bool startedBfnMetadataThread = false;
+	if (g_program->IsServer() && !startedBfnMetadataThread)
+	{
+		startedBfnMetadataThread = true;
+		std::thread([]()
+		{
+			while (g_program && g_program->IsServer())
+			{
+				Cypress::Server* server = g_program->GetServer();
+				if (server)
+					server->TickPlayerMetadata();
+				Sleep(1000);
+			}
+		}).detach();
+	}
+#endif
+
 #endif
 	return Orig_fb_Server_start(thisPtr, info, spawnOverrides);
 }
@@ -161,8 +184,8 @@ DEFINE_HOOK(
 	if (g_program->IsServer())
 	{
 		Cypress::Server* server = g_program->GetServer();
-
 		server->UpdateStatus(thisPtr, (float)ptrread<int>(params, 0x18) * 0.000000001);
+		server->TickPlayerMetadata();
 		
 		bool statusUpdated = !server->GetStatusUpdated();
 		server->SetStatusUpdated(true);
@@ -200,6 +223,7 @@ DEFINE_HOOK(
 	{
 		Cypress::Server* server = g_program->GetServer();
 		server->UpdateStatus(thisPtr, ptrread<float>(params, CYPRESS_GW_SELECT(0x18, 0x28, 0)));
+		server->TickPlayerMetadata();
 
 		bool statusUpdated = !server->GetStatusUpdated();
 		server->SetStatusUpdated(true);
@@ -354,6 +378,11 @@ DEFINE_HOOK(
 )
 {
 	Orig_fb_ServerPVZRoundControl_event(thisPtr, event);
+
+	if (g_program->IsServer())
+	{
+		Cypress::Server* server = g_program->GetServer();
+	}
 
 	if (event->eventId == 0xDB4B330) //Reset
 	{
@@ -701,6 +730,10 @@ DEFINE_HOOK(
 {
 	if (!player->isAIPlayer() && nickname && nickname[0] != '\0')
 	{
+#if(HAS_DEDICATED_SERVER)
+		if (g_program->IsServer())
+			g_program->GetServer()->ClearPlayerMetadata(nickname, player->getPlayerId());
+#endif
 		CYPRESS_LOGTOSERVER(LogLevel::Info, "[Id: {}] {} has joined the server", player->getPlayerId(), nickname);
 		if (Cypress_IsEmbeddedMode())
 			Cypress_EmitJsonPlayerEvent("playerJoin", player->getPlayerId(), nickname);
@@ -762,7 +795,29 @@ DEFINE_HOOK(
 	}
 #endif
 
-	return Orig_fb_ServerPlayerManager_addPlayer(thisPtr, player, nickname);
+	void* result = Orig_fb_ServerPlayerManager_addPlayer(thisPtr, player, nickname);
+
+#ifdef CYPRESS_BFN
+#if(HAS_DEDICATED_SERVER)
+	if (g_program->IsServer() && !player->isAIPlayer() && nickname && nickname[0] != '\0')
+	{
+		Cypress::Server* server = g_program->GetServer();
+		server->TickPlayerMetadata();
+
+		std::string joinedName(nickname);
+		std::thread([joinedName]()
+		{
+			Sleep(2000);
+			if (!g_program || !g_program->IsServer() || !g_program->GetServer())
+				return;
+
+			g_program->GetServer()->TickPlayerMetadata();
+		}).detach();
+	}
+#endif
+#endif
+
+	return result;
 }
 
 #ifdef CYPRESS_BFN
@@ -783,6 +838,10 @@ DEFINE_HOOK(
 
 	if (!thisPtr->isAIPlayer() && thisPtr->m_name && thisPtr->m_name[0] != '\0')
 	{
+#if(HAS_DEDICATED_SERVER)
+		if (g_program->IsServer())
+			g_program->GetServer()->ClearPlayerMetadata(thisPtr->m_name, thisPtr->getPlayerId());
+#endif
 		CYPRESS_LOGTOSERVER(LogLevel::Info, "[Id: {}] {} has left the server (Reason: {}, {})",
 			thisPtr->getPlayerId(),
 			thisPtr->m_name,
@@ -819,6 +878,10 @@ DEFINE_HOOK(
 
 	if (!thisPtr->isAIPlayer() && thisPtr->m_name && thisPtr->m_name[0] != '\0')
 	{
+#if(HAS_DEDICATED_SERVER)
+		if (g_program->IsServer())
+			g_program->GetServer()->ClearPlayerMetadata(thisPtr->m_name, thisPtr->getPlayerId());
+#endif
 		CYPRESS_LOGTOSERVER(LogLevel::Info, "[Id: {}] {} has left the server (Reason: {}, {})",
 			thisPtr->getPlayerId(),
 			thisPtr->m_name,

@@ -73,6 +73,7 @@ DECLARE_HOOK(
 	void* thisPtr,
 	struct fb::EntityEvent* event
 );
+
 #else
 DECLARE_HOOK(
 	fb_ServerPVZLevelControlEntity_loadLevel,
