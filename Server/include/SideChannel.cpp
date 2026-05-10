@@ -219,11 +219,7 @@ namespace Cypress
 
 	SideChannelServer::~SideChannelServer()
 	{
-		Stop();
-		for (auto& t : m_clientThreads)
-		{
-			if (t.joinable()) t.detach();
-		}
+		Stop(); // joins and clears m_clientThreads
 	}
 
 	bool SideChannelServer::Start(int port)
@@ -274,6 +270,12 @@ namespace Cypress
 		}
 
 		m_running = true;
+		char requireIdentityBuf[8] = {};
+		m_requireIdentity = GetEnvironmentVariableA("CYPRESS_REQUIRE_IDENTITY", requireIdentityBuf, sizeof(requireIdentityBuf)) > 0
+			&& strcmp(requireIdentityBuf, "1") == 0;
+		char allowModsBuf[8] = {};
+		m_allowGlobalMods = !(GetEnvironmentVariableA("CYPRESS_ALLOW_GLOBAL_MODS", allowModsBuf, sizeof(allowModsBuf)) > 0
+			&& strcmp(allowModsBuf, "0") == 0);
 		LoadMasterPubKey();
 		StartBanListSync();
 		m_acceptThread = std::thread(&SideChannelServer::AcceptLoop, this);
@@ -304,6 +306,11 @@ namespace Cypress
 
 		if (m_acceptThread.joinable())
 			m_acceptThread.join();
+
+		// join all client threads now that their sockets are closed
+		for (auto& t : m_clientThreads)
+			if (t.joinable()) t.join();
+		m_clientThreads.clear();
 	}
 
 	void SideChannelServer::LoadMasterPubKey()
@@ -443,6 +450,21 @@ namespace Cypress
 			inet_ntop(AF_INET, &clientAddr.sin_addr, addrStr, sizeof(addrStr));
 			CYPRESS_DEBUG_LOGMESSAGE(LogLevel::Debug, "SideChannel: New connection from {}", addrStr);
 
+			// reap finished threads before adding the new one
+			m_clientThreads.erase(
+				std::remove_if(m_clientThreads.begin(), m_clientThreads.end(),
+					[](std::thread& t) -> bool {
+						if (!t.joinable()) return true;
+						HANDLE h = (HANDLE)t.native_handle();
+						if (WaitForSingleObject(h, 0) == WAIT_OBJECT_0)
+						{
+							t.join();
+							return true;
+						}
+						return false;
+					}),
+				m_clientThreads.end());
+
 			m_clientThreads.emplace_back(&SideChannelServer::ClientLoop, this, clientSock);
 		}
 	}
@@ -523,8 +545,8 @@ namespace Cypress
 	// called after hwid auth + identity verification (or directly if identity not enforced)
 	void SideChannelServer::FinalizeAuth(SideChannelPeer& peer, bool claimMod)
 	{
-		// mod challenge
-		if (peer.authenticated && !peer.isModerator && claimMod)
+		// mod challenge: only if global mods are allowed on this server
+		if (peer.authenticated && !peer.isModerator && claimMod && m_allowGlobalMods)
 		{
 			peer.modChallengeNonce = GenerateNonce();
 			CYPRESS_LOGMESSAGE(LogLevel::Debug, "SideChannel: Issuing mod challenge to {}", peer.name);
@@ -712,9 +734,9 @@ namespace Cypress
 				peer.authenticated = !peer.name.empty() && !peer.hwid.empty();
 				peer.isModerator = !peer.accountId.empty() && IsModerator(peer.accountId);
 
-				// verify identity jwt, required when master pubkey is loaded
+				// verify identity jwt, required when master pubkey is loaded and server opts in
 				std::string jwt = msg.value("jwt", "");
-				if (peer.authenticated && m_masterPubKeyLoaded)
+				if (peer.authenticated && m_masterPubKeyLoaded && m_requireIdentity)
 				{
 					if (jwt.empty())
 					{
@@ -844,6 +866,7 @@ namespace Cypress
 					SendToPeer(peer, { {"type", "error"}, {"msg", "Not authenticated"} });
 					return;
 				}
+				if (!m_allowGlobalMods) return;
 				if (peer.isModerator) return; // already a mod
 
 				// rate limit: 30 seconds between challenges
@@ -865,7 +888,7 @@ namespace Cypress
 
 			if (type == "modChallengeResponse")
 			{
-				if (!peer.authenticated || peer.isModerator) return;
+				if (!peer.authenticated || peer.isModerator || !m_allowGlobalMods) return;
 				if (peer.modChallengeNonce.empty())
 				{
 					SendToPeer(peer, { {"type", "error"}, {"msg", "No pending mod challenge"} });

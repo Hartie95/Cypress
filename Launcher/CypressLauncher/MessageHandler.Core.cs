@@ -78,7 +78,7 @@ public partial class MessageHandler
 	private readonly object m_instanceLock = new();
 	private long m_lastLaunchTicks = 0;
 
-	private const string MASTER_SERVER_URL = "https://api-cypress.v0e.dev";
+	private static string MASTER_SERVER_URL => LauncherConfig.MasterUrl;
 	private readonly Dictionary<int, HeartbeatState> m_heartbeats = new();
 
 	private sealed class HeartbeatState
