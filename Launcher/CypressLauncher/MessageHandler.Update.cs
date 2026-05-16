@@ -229,6 +229,12 @@ public partial class MessageHandler
 			return;
 		}
 
+		if (!IsAllowedAssetUrl(assetUrl))
+		{
+			Send(new JObject { ["type"] = "updateError", ["channel"] = channel, ["error"] = "update url is not from an allowed source" });
+			return;
+		}
+
 		Task.Run(async () =>
 		{
 			try
@@ -429,6 +435,15 @@ try {{
 
 		SendStatus("Restarting to apply update...", "info");
 		Environment.Exit(0);
+	}
+
+	private static bool IsAllowedAssetUrl(string url)
+	{
+		if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+		if (uri.Scheme != Uri.UriSchemeHttps) return false;
+		if (!uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)) return false;
+		if (!uri.AbsolutePath.StartsWith("/PvZ-Cypress/Cypress/releases/download/", StringComparison.OrdinalIgnoreCase)) return false;
+		return true;
 	}
 
 	private static string PsQuote(string value)

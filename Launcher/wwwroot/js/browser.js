@@ -132,7 +132,12 @@ function onBrowserIcon(data) {
         }
         var el = document.querySelector('.browser-entry-icon[data-key="' + data.key + '"]');
         if (el && browserIconCache[data.key]) {
-            el.innerHTML = '<img src="' + browserIconCache[data.key] + '" alt="" draggable="false">';
+            var img = document.createElement('img');
+            img.alt = '';
+            img.draggable = false;
+            img.src = browserIconCache[data.key];
+            el.innerHTML = '';
+            el.appendChild(img);
         }
     }
 }
@@ -218,8 +223,10 @@ function renderBrowserList(servers) {
         var motd = s.motd || 'A Cypress Server';
         var liveCount = browserPlayerCache[key];
         var players = liveCount !== undefined ? liveCount : s.players;
-        var playerText = (players !== undefined ? players : '?') + '/' + (s.maxPlayers || '?');
-        var gameClass = (s.game || 'GW2').toLowerCase();
+        var safePlayerCount = (players !== undefined && players !== null && isFinite(+players)) ? Math.floor(+players) : '?';
+        var safeMaxPlayers = (s.maxPlayers !== undefined && s.maxPlayers !== null && isFinite(+s.maxPlayers)) ? Math.floor(+s.maxPlayers) : '?';
+        var playerText = safePlayerCount + '/' + safeMaxPlayers;
+        var gameClass = (s.game || 'GW2').toLowerCase().replace(/[^a-z0-9]/g, '');
         var cachedIcon = browserIconCache[key];
 
         html += '<div class="browser-entry" onclick="onBrowserEntryClick(\'' + escapeAttr(key) + '\')" ondblclick="onBrowserEntryDblClick(\'' + escapeAttr(key) + '\')">';
@@ -285,7 +292,7 @@ function renderBrowserList(servers) {
         if (metaTags.length) html += ' &middot; ' + metaTags.join(' ');
         html += '</div>';
         if (s.modded && s.modpackUrl) {
-            html += '<a class="server-entry-modpack" href="#" data-url="' + escapeHtml(s.modpackUrl) + '" onclick="event.stopPropagation(); openModpackLink(this.dataset.url); return false;" title="Download modpack">';
+            html += '<a class="server-entry-modpack" href="#" data-url="' + escapeAttr(s.modpackUrl) + '" onclick="event.stopPropagation(); openModpackLink(this.dataset.url); return false;" title="Download modpack">';
             html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
             html += ' Modpack';
             html += '</a>';
@@ -307,11 +314,12 @@ function renderBrowserList(servers) {
         html += '</div>';
         // ping column
         var ping = browserPingCache[key];
+        var pingNum = (ping != null && isFinite(+ping)) ? Math.floor(+ping) : null;
         html += '<div class="browser-entry-ping" data-key="' + escapeAttr(key) + '">';
-        if (ping != null) {
-            var pingClass = ping < 80 ? 'ping-good' : ping < 150 ? 'ping-ok' : 'ping-bad';
+        if (pingNum !== null) {
+            var pingClass = pingNum < 80 ? 'ping-good' : pingNum < 150 ? 'ping-ok' : 'ping-bad';
             html += '<div class="ping-bars ' + pingClass + '"><span></span><span></span><span></span></div>';
-            html += '<span class="ping-ms">' + ping + 'ms</span>';
+            html += '<span class="ping-ms">' + pingNum + 'ms</span>';
         } else {
             html += '<div class="ping-bars ping-unknown"><span></span><span></span><span></span></div>';
             html += '<span class="ping-ms">--</span>';
@@ -363,8 +371,18 @@ function updateBrowserEntryPing(address) {
     var ping = browserPingCache[address];
     var el = document.querySelector('.browser-entry-ping[data-key="' + CSS.escape(address) + '"]');
     if (!el || ping == null) return;
-    var pingClass = ping < 80 ? 'ping-good' : ping < 150 ? 'ping-ok' : 'ping-bad';
-    el.innerHTML = '<div class="ping-bars ' + pingClass + '"><span></span><span></span><span></span></div><span class="ping-ms">' + ping + 'ms</span>';
+    var pingNum = isFinite(+ping) ? Math.floor(+ping) : null;
+    if (pingNum === null) return;
+    var pingClass = pingNum < 80 ? 'ping-good' : pingNum < 150 ? 'ping-ok' : 'ping-bad';
+    var bars = document.createElement('div');
+    bars.className = 'ping-bars ' + pingClass;
+    bars.innerHTML = '<span></span><span></span><span></span>';
+    var ms = document.createElement('span');
+    ms.className = 'ping-ms';
+    ms.textContent = pingNum + 'ms';
+    el.innerHTML = '';
+    el.appendChild(bars);
+    el.appendChild(ms);
 }
 
 function onBrowserEntryClick(address) {
@@ -556,8 +574,10 @@ function updateBrowserEntryPlayers(key) {
         var server = findBrowserServer(key);
         var liveCount = browserPlayerCache[key];
         var players = liveCount !== undefined ? liveCount : (server ? server.players : undefined);
-        var maxPlayers = server ? (server.maxPlayers || '?') : '?';
-        var playerText = (players !== undefined ? players : '?') + '/' + maxPlayers;
+        var maxPlayersRaw = server ? server.maxPlayers : undefined;
+        var safeCount = (players !== undefined && players !== null && isFinite(+players)) ? Math.floor(+players) : '?';
+        var safeMax = (maxPlayersRaw !== undefined && maxPlayersRaw !== null && isFinite(+maxPlayersRaw)) ? Math.floor(+maxPlayersRaw) : '?';
+        var playerText = safeCount + '/' + safeMax;
 
         var countEl = entries[i].querySelector('.browser-player-count');
         if (countEl) countEl.textContent = playerText;
