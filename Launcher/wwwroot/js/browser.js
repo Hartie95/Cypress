@@ -130,7 +130,7 @@ function onBrowserIcon(data) {
         if (typeof isValidBase64 === 'function' && isValidBase64(data.icon)) {
             browserIconCache[data.key] = typeof base64ToBlobUrl === 'function' ? base64ToBlobUrl(data.icon) : toBlobUrl(data.icon);
         }
-        var el = document.querySelector('.browser-entry-icon[data-key="' + data.key + '"]');
+        var el = document.querySelector('.browser-entry-icon[data-key="' + CSS.escape(data.key) + '"]');
         if (el && browserIconCache[data.key]) {
             var img = document.createElement('img');
             img.alt = '';
