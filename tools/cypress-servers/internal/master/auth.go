@@ -168,27 +168,20 @@ func (s *masterState) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// fetch entitlements synchronously so they're in the DB before the client calls /auth/register
-	// skip if any entid is already set. user can hit Refresh Licenses to pick up new purchases
-	var dummy string
-	if s.db.QueryRow(
-		"SELECT account_id FROM accounts WHERE ea_pid = ? AND (entid_gw1 != '' OR entid_gw2 != '' OR entid_bfn != '')",
-		pid,
-	).Scan(&dummy) != nil {
-		entids, err := ea.FetchGameEntitlements(eaToken)
-		if err != nil {
-			log.Printf("[auth] entitlements fetch failed for %s: %v", pid, err)
-		} else {
-			gw1 := entids["PVZGWPC"]
-			gw2 := entids["PVZGW2PC"]
-			bfn := entids["PVZGW3PC"]
-			if gw1 != "" || gw2 != "" || bfn != "" {
-				s.db.Exec(
-					"UPDATE accounts SET entid_gw1 = CASE WHEN ? != '' THEN ? ELSE entid_gw1 END, entid_gw2 = CASE WHEN ? != '' THEN ? ELSE entid_gw2 END, entid_bfn = CASE WHEN ? != '' THEN ? ELSE entid_bfn END WHERE ea_pid = ?",
-					gw1, gw1, gw2, gw2, bfn, bfn, pid,
-				)
-				log.Printf("[auth] entitlements updated for ea_pid=%s gw1=%s gw2=%s bfn=%s", pid, gw1, gw2, bfn)
-			}
+	// always re-fetch entitlements on login so licenses stay current
+	entids, err := ea.FetchGameEntitlements(eaToken)
+	if err != nil {
+		log.Printf("[auth] entitlements fetch failed for %s: %v", pid, err)
+	} else {
+		gw1 := entids["PVZGWPC"]
+		gw2 := entids["PVZGW2PC"]
+		bfn := entids["PVZGW3PC"]
+		if gw1 != "" || gw2 != "" || bfn != "" {
+			s.db.Exec(
+				"UPDATE accounts SET entid_gw1 = CASE WHEN ? != '' THEN ? ELSE entid_gw1 END, entid_gw2 = CASE WHEN ? != '' THEN ? ELSE entid_gw2 END, entid_bfn = CASE WHEN ? != '' THEN ? ELSE entid_bfn END WHERE ea_pid = ?",
+				gw1, gw1, gw2, gw2, bfn, bfn, pid,
+			)
+			log.Printf("[auth] entitlements updated for ea_pid=%s gw1=%s gw2=%s bfn=%s", pid, gw1, gw2, bfn)
 		}
 	}
 

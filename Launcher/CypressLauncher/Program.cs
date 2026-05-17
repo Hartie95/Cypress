@@ -11,6 +11,12 @@ internal static class Program
 {
 	private static readonly bool s_isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
+	[DllImport("kernel32.dll")]
+	private static extern bool AttachConsole(int dwProcessId);
+	[DllImport("kernel32.dll")]
+	private static extern bool FreeConsole();
+	private const int ATTACH_PARENT_PROCESS = -1;
+
 	[DllImport("shell32.dll", CharSet = CharSet.Unicode)]
 	private static extern int SetCurrentProcessExplicitAppUserModelID(string appID);
 
@@ -53,7 +59,11 @@ internal static class Program
 
 			if (args.Length > 0)
 			{
+				AttachConsole(ATTACH_PARENT_PROCESS);
+				// print a newline so output starts on a fresh line after the prompt
+				Console.WriteLine();
 				Environment.ExitCode = PatchCli.Run(args);
+				FreeConsole();
 				return;
 			}
 
