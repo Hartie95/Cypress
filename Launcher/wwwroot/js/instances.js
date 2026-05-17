@@ -1856,11 +1856,12 @@ function updateDetectedList() {
 
     container.innerHTML = detectedInstancesList.map(function(inst, idx) {
         const typeLabel = inst.isServer ? 'Server' : 'Client';
-        const gameLabel = { GW1: 'GW1', GW2: 'GW2', BFN: 'BFN' }[inst.game] || inst.game;
+        const gameLabel = { GW1: 'GW1', GW2: 'GW2', BFN: 'BFN' }[inst.game] || escapeHtml(String(inst.game || ''));
+        const safeGame = { GW1: 'gw1', GW2: 'gw2', BFN: 'bfn' }[inst.game] || 'gw2';
         return '<div class="detected-instance-entry" onclick="attachDetectedInstance(' + idx + ')">' +
-            '<span class="game-pill game-pill-' + (inst.game || 'gw2').toLowerCase() + '">' + gameLabel + '</span> ' +
+            '<span class="game-pill game-pill-' + safeGame + '">' + gameLabel + '</span> ' +
             '<span>' + typeLabel + '</span>' +
-            '<span class="text-muted">PID ' + inst.pid + ' · Port ' + inst.port + '</span>' +
+            '<span class="text-muted">PID ' + parseInt(inst.pid, 10) + ' · Port ' + parseInt(inst.port, 10) + '</span>' +
         '</div>';
     }).join('');
 }

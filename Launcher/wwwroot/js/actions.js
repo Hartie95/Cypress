@@ -227,7 +227,7 @@ function loadUserData(data) {
     }
     if (data.serverName !== undefined) setMotdRaw(data.serverName);
     if (data.modpackUrl !== undefined) document.getElementById('modpackUrl').value = data.modpackUrl;
-    if (data.serverIcon) {
+    if (data.serverIcon && typeof isValidBase64 === 'function' && isValidBase64(data.serverIcon)) {
         document.getElementById('serverIconData').value = data.serverIcon;
         document.getElementById('serverIconPreview').innerHTML = '<img src="data:image/jpeg;base64,' + data.serverIcon + '" alt="Server Icon" draggable="false">';
         document.getElementById('clearIconBtn').style.display = '';
